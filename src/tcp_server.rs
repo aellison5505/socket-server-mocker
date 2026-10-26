@@ -33,6 +33,7 @@ impl Default for TcpMocker {
             net_timeout: Duration::from_millis(100),
             rx_timeout: Duration::from_millis(100),
             reader_buffer_size: 1024,
+    
         }
     }
 }
@@ -64,6 +65,8 @@ impl MockerOptions for TcpMocker {
                     instruction_rx,
                     message_tx,
                     error_tx,
+                    instruction_counter: 0,
+                    received_mesages: Vec::new(),
                 }
                 .run();
             }
@@ -79,12 +82,16 @@ impl MockerOptions for TcpMocker {
 }
 
 /// TCP server mocker thread implementation
+#[derive(Debug)]
 pub(crate) struct TcpServerImpl {
     options: TcpMocker,
     stream: TcpStream,
     instruction_rx: Receiver<Vec<Instruction>>,
     message_tx: Sender<Vec<u8>>,
     error_tx: Sender<ServerMockerError>,
+    instruction_counter: usize,
+    /// Messages received from the client
+    received_mesages: Vec<Vec<u8>>,
 }
 
 /// TCP server mocker thread implementation
@@ -109,6 +116,13 @@ impl TcpServerImpl {
                     }
                     SendMessageDependingOnLastReceivedMessage(sent_message_calculator) => {
                         // Call the closure to get the message to send
+                        let current_count = self.instruction_counter;
+                        loop {
+                            if current_count == self.received_mesages.len() {
+                                break;
+                            }
+                        }
+                        last_received_message = self.received_mesages.last().cloned();
                         let message_to_send =
                             sent_message_calculator(last_received_message.clone());
                         // Send the message or skip if the closure returned None
@@ -122,6 +136,8 @@ impl TcpServerImpl {
                         match self.read_packet() {
                             Ok(whole_received_packet) => {
                                 last_received_message = Some(whole_received_packet.clone());
+                                self.received_mesages.push(whole_received_packet.clone());
+                                self.instruction_counter += 1;
                                 self.message_tx.send(whole_received_packet).unwrap();
                             }
                             Err(e) => self.error_tx.send(e).unwrap(),
@@ -132,6 +148,8 @@ impl TcpServerImpl {
                             Ok(mut whole_received_packet) => {
                                 whole_received_packet.truncate(max_message_size);
                                 last_received_message = Some(whole_received_packet.clone());
+                                self.instruction_counter += 1;
+                                self.received_mesages.push(whole_received_packet.clone());
                                 self.message_tx.send(whole_received_packet).unwrap();
                             }
                             Err(e) => self.error_tx.send(e).unwrap(),
