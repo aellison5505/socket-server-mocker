@@ -1,3 +1,4 @@
+//! Integration tests for simple HTTP server behavior using reqwest.
 use std::str::from_utf8;
 
 use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};

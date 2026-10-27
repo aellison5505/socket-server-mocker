@@ -1,3 +1,4 @@
+//! Integration tests for simple SMTP server behavior.
 use std::time::Duration;
 
 use lettre::transport::smtp::client::Tls;

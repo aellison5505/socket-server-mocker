@@ -1,3 +1,4 @@
+//! Integration tests for simple UDP server behavior.
 use std::net::Ipv4Addr;
 use std::str::FromStr;
 

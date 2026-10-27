@@ -3,7 +3,7 @@
 //! Instructions sent by the testing code to the mocked server.
 
 /// Type of network instruction executed by the server mocker.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     /// Send given message to the client
     SendMessage(Vec<u8>),

@@ -1,3 +1,5 @@
+
+//! Integration tests for simple UDP server behavior.
 use std::net::UdpSocket;
 use std::str::from_utf8;
 use std::thread::sleep;

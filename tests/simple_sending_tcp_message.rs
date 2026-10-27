@@ -1,3 +1,4 @@
+//! Integration tests for simple TCP server behavior.
 use std::io::Read;
 use std::net::TcpStream;
 
