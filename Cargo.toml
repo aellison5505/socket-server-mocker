@@ -2,8 +2,8 @@
 name = "socket-server-mocker"
 description = "Mock socket server in Rust, for testing various network clients."
 authors = ["Thomas Prévost", "Yuri Astrakhan <YuriAstrakhan>@gmail.com"]
-version = "0.5.0"
-rust-version = "1.74.0"
+version = "0.6.0"
+rust-version = "1.99.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/thomasarmel/socket-server-mocker"
@@ -17,21 +17,3 @@ reqwest = { version = "0.12.7", features = ["blocking"] }
 postgres = "0.19.9"
 trust-dns-client = "0.23.2"
 lettre = "0.11.9"
-
-[lints.rust]
-# Forbid unsafe code - we guarantee this crate to be unsafe-free
-unsafe_code = "forbid"
-# The rest of the lints could be overriden in the code
-unused_must_use = "warn"
-missing_docs = "warn"
-unreachable_pub = "warn"
-unused_import_braces = "warn"
-unused_extern_crates = "warn"
-
-[lints.clippy]
-pedantic = { level = "warn", priority = -1 }
-# Ideally this should be fixed, although some could be safely ignored
-missing_errors_doc = "allow"
-module_name_repetitions = "allow"
-must_use_candidate = "allow"
-string_lit_as_bytes = "warn"

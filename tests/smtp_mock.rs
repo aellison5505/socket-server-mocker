@@ -1,9 +1,10 @@
 //! Integration tests for simple SMTP server behavior.
+
 use std::time::Duration;
 
 use lettre::transport::smtp::client::Tls;
 use lettre::{Message, SmtpTransport, Transport};
-use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
+use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange, SendMessageDependingOnLastReceivedMessage};
 use socket_server_mocker::ServerMocker;
 
 #[test]
@@ -23,7 +24,19 @@ fn test_smtp_mock() {
         ReceiveMessage,
         SendMessage(b"354 End data with <CR><LF>.<CR><LF>\r\n".to_vec()),
         ReceiveMessage,
-        SendMessage(b"250 2.0.0 Ok: queued as 1C1A1B1C1D1E1F1G1H1I1J1K1L1M1N1O1P1Q1R1S1T1U1V1W1X1Y1Z\r\n".to_vec()),
+        SendMessageDependingOnLastReceivedMessage(|last_received| {
+            if let Some(last_received) = last_received {
+           //     println!("Last received message: {:?}", String::from_utf8(last_received.clone()));
+                if String::from_utf8(last_received.clone()).unwrap().contains("Be happy!") {
+                    Some(b"250 2.0.0 Ok: queued as 1C1A1B1C1D1E1F1G1H1I1J1K1L1M1N1O1P1Q1R1S1T1U1V1W1X1Y1Z\r\n".to_vec())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }),
+       // SendMessage(b"250 2.0.0 Ok: queued as 1C1A1B1C1D1E1F1G1H1I1J1K1L1M1N1O1P1Q1R1S1T1U1V1W1X1Y1Z\r\n".to_vec()),
         StopExchange,
     ]).unwrap();
 
@@ -60,6 +73,7 @@ fn test_smtp_mock() {
         b"MAIL FROM:<alice.dupont@localhost.mock>\r\n",
         server.pop_received_message().unwrap().as_slice()
     );
+
     assert_eq!(
         b"RCPT TO:<bob.dupond@localhost.mock>\r\n",
         server.pop_received_message().unwrap().as_slice()

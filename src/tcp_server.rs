@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::time::Duration;
@@ -95,7 +96,7 @@ impl TcpServerImpl {
             self.error_tx.send(UnableToSetReadTimeout(e)).unwrap();
             return;
         }
-        let mut last_received_message: Option<Vec<u8>> = None;
+        let  last_received_message: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
 
         // Timeout: if no more instruction is available and StopExchange hasn't been sent
         // Stop server if no more instruction is available and StopExchange hasn't been sent
@@ -109,19 +110,25 @@ impl TcpServerImpl {
                     }
                     SendMessageDependingOnLastReceivedMessage(sent_message_calculator) => {
                         // Call the closure to get the message to send
-                        let message_to_send =
-                            sent_message_calculator(last_received_message.clone());
-                        // Send the message or skip if the closure returned None
-                        if let Some(message_to_send) = message_to_send {
-                            if let Err(e) = self.send_packet(&message_to_send) {
-                                self.error_tx.send(e).unwrap();
+                        
+                            let msg_cloned = Arc::clone(&last_received_message);
+                            let  msg_clone = msg_cloned.lock().unwrap().clone();
+
+                                if msg_clone.is_some() {
+                                let message_to_send = sent_message_calculator(msg_clone);
+                                // Send the message or skip if the closure returned None
+                                if let Some(message_to_send) = message_to_send {
+                                    if let Err(e) = self.send_packet(&message_to_send) {
+                                        self.error_tx.send(e).unwrap();
+                                    }
+                                }
                             }
-                        }
                     }
+                    
                     Instruction::ReceiveMessage => {
                         match self.read_packet() {
                             Ok(whole_received_packet) => {
-                                last_received_message = Some(whole_received_packet.clone());
+                                *last_received_message.lock().unwrap() = Some(whole_received_packet.clone());
                                 self.message_tx.send(whole_received_packet).unwrap();
                             }
                             Err(e) => self.error_tx.send(e).unwrap(),
@@ -131,7 +138,9 @@ impl TcpServerImpl {
                         match self.read_packet() {
                             Ok(mut whole_received_packet) => {
                                 whole_received_packet.truncate(max_message_size);
-                                last_received_message = Some(whole_received_packet.clone());
+                                let msg_cloned = Arc::clone(&last_received_message);
+                                let mut msg = msg_cloned.lock().unwrap();
+                                *msg = Some(whole_received_packet.clone());
                                 self.message_tx.send(whole_received_packet).unwrap();
                             }
                             Err(e) => self.error_tx.send(e).unwrap(),
