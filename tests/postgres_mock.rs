@@ -42,9 +42,9 @@ fn postgres_insert_mock() {
         .user("admin")
         .password("password")
         .dbname("mockeddatabase")
-        .connect_timeout(Duration::from_secs(2))
-        .tcp_user_timeout(Duration::from_secs(2))
-        .keepalives(false)
+        .connect_timeout(Duration::from_secs(1))
+        .tcp_user_timeout(Duration::from_secs(1))
+        .keepalives(true)
         .port(server.port())
         .connect(NoTls)
         .unwrap();
@@ -110,7 +110,7 @@ on\x00S\x00\x00\x00\x1aTimeZone\x00Europe/Paris\x00K\x00\x00\x00\x0c\x00\x00\x0a
         .dbname("mockeddatabase")
         .connect_timeout(Duration::from_secs(1))
         .tcp_user_timeout(Duration::from_secs(1))
-        .keepalives(false)
+        .keepalives(true)
         .port(server.port())
         .connect(NoTls)
         .unwrap();

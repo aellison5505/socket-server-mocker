@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -96,7 +96,7 @@ impl TcpServerImpl {
             self.error_tx.send(UnableToSetReadTimeout(e)).unwrap();
             return;
         }
-        let  last_received_message: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
+        let last_received_message: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
 
         // Timeout: if no more instruction is available and StopExchange hasn't been sent
         // Stop server if no more instruction is available and StopExchange hasn't been sent
@@ -110,25 +110,27 @@ impl TcpServerImpl {
                     }
                     SendMessageDependingOnLastReceivedMessage(sent_message_calculator) => {
                         // Call the closure to get the message to send
-                        
-                            let msg_cloned = Arc::clone(&last_received_message);
-                            let  msg_clone = msg_cloned.lock().unwrap().clone();
 
-                                if msg_clone.is_some() {
-                                let message_to_send = sent_message_calculator(msg_clone);
-                                // Send the message or skip if the closure returned None
-                                if let Some(message_to_send) = message_to_send {
-                                    if let Err(e) = self.send_packet(&message_to_send) {
-                                        self.error_tx.send(e).unwrap();
-                                    }
+                        let msg_cloned = Arc::clone(&last_received_message);
+                        let msg_clone = msg_cloned.lock().unwrap().clone();
+
+                        if msg_clone.is_some() {
+                            let message_to_send = sent_message_calculator(msg_clone);
+                            // Send the message or skip if the closure returned None
+                            if let Some(message_to_send) = message_to_send {
+                                if let Err(e) = self.send_packet(&message_to_send) {
+                                    self.error_tx.send(e).unwrap();
                                 }
                             }
+                        }
                     }
-                    
+
                     Instruction::ReceiveMessage => {
                         match self.read_packet() {
                             Ok(whole_received_packet) => {
-                                *last_received_message.lock().unwrap() = Some(whole_received_packet.clone());
+                                let msg_cloned = Arc::clone(&last_received_message);
+                                let mut msg = msg_cloned.lock().unwrap();
+                                *msg = Some(whole_received_packet.clone());
                                 self.message_tx.send(whole_received_packet).unwrap();
                             }
                             Err(e) => self.error_tx.send(e).unwrap(),
