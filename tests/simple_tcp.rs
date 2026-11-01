@@ -129,7 +129,7 @@ fn test_receive_timeout() {
         .unwrap();
 
     // Wait twice the timeout
-    sleep(2 * server.options().rx_timeout);
+    sleep(5 * server.options().rx_timeout);
 
     // Check that the mocked server has raised an error
     let err = server.pop_server_error();

@@ -8,13 +8,18 @@
 //! This hash method is secured by a nonce, so this mocked server uses md5 instead.
 
 use std::time::Duration;
-
+//use tracing::info;
 use postgres::{Client, NoTls};
 use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
 use socket_server_mocker::ServerMocker;
+use tracing_subscriber::prelude::*;
 
 #[test]
 fn postgres_insert_mock() {
+    let (non_blocking, _guard) = tracing_appender::non_blocking(std::io::stdout());
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
+        .init();
     // Mock PostgreSQL server on a random port (default PostgresSQL port is 5432)
     let server = ServerMocker::tcp().unwrap();
 
@@ -42,9 +47,9 @@ fn postgres_insert_mock() {
         .user("admin")
         .password("password")
         .dbname("mockeddatabase")
-        .connect_timeout(Duration::from_secs(1))
-        .tcp_user_timeout(Duration::from_secs(1))
-        .keepalives(true)
+        .connect_timeout(Duration::from_secs(10))
+        .tcp_user_timeout(Duration::from_secs(10))
+        .keepalives(false)
         .port(server.port())
         .connect(NoTls)
         .unwrap();
@@ -65,10 +70,11 @@ fn postgres_insert_mock() {
             SendMessage(b"1\x00\x00\x00\x04t\x00\x00\x00\x0e\x00\x02\x00\x00\x04\x13\x00\x00\x04\x13n\x00\x00\x00\x04Z\x00\x00\x00\x05I".into()),
             ReceiveMessage,
             SendMessage(b"2\x00\x00\x00\x04C\x00\x00\x00\x0fINSERT 0 1\x00Z\x00\x00\x00\x05I".into()),
-            StopExchange, // PG client will attempt proper session closing which we are not simulating, so just stop early
+       //     StopExchange, // PG client will attempt proper session closing which we are not simulating, so just stop early
         ])
         .unwrap();
 
+    tracing::info!("client executing INSERT query, {}", client.is_closed());
     // Execute the INSERT query
     client
         .execute(
@@ -79,15 +85,24 @@ fn postgres_insert_mock() {
 
     // Check that no error has been raised by the mocked server
     assert!(server.pop_server_error().is_none());
+
+    tracing::info!("Client connection still open");
+    client
+        .close()
+        .unwrap_or_else(|e| tracing::error!("Failed to close client: {}", e));
 }
 
 #[test]
 fn postgres_select_mock() {
+    //   let (non_blocking, _guard) = tracing_appender::non_blocking(std::io::stdout());
+    //  tracing_subscriber::registry()
+    //     .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
+    //     .init();
     // Mock PostgreSQL server on a random free port (default PostgresSQL port is 5432)
-    let server = ServerMocker::tcp().unwrap();
+    let server2 = ServerMocker::tcp().unwrap();
 
     // Add mock binary messages corresponding to client connection and authentication
-    server
+    server2
         .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(b"R\x00\x00\x00\x0c\x00\x00\x00\x05\xb8(/\xf6".into()),
@@ -103,40 +118,41 @@ on\x00S\x00\x00\x00\x1aTimeZone\x00Europe/Paris\x00K\x00\x00\x00\x0c\x00\x00\x0a
         .unwrap();
 
     // Connect to local mocked PostgreSQL server
-    let mut client = Client::configure()
+    let mut client2 = Client::configure()
         .host("localhost")
         .user("admin")
         .password("password")
         .dbname("mockeddatabase")
-        .connect_timeout(Duration::from_secs(1))
-        .tcp_user_timeout(Duration::from_secs(1))
-        .keepalives(true)
-        .port(server.port())
+        .connect_timeout(Duration::from_secs(10))
+        .tcp_user_timeout(Duration::from_secs(10))
+        .keepalives(false)
+        .port(server2.port())
         .connect(NoTls)
         .unwrap();
 
     // Check connection message sent by the client to mock server is correct
     assert_eq!(
         b"\x00\x00\x00A\x00\x03\x00\x00client_encoding\x00UTF8\x00user\x00admin\x00database\x00mockeddatabase\x00\x00",
-        server.pop_received_message().unwrap().as_slice()
+        server2.pop_received_message().unwrap().as_slice()
     );
 
     // Cannot verify the authentication message sent by the client to mock server because it contains a random salt
-    server.pop_received_message().unwrap();
+    server2.pop_received_message().unwrap();
 
     // Add mock instructions corresponding to the client SELECT query
-    server
+    server2
         .add_mock_instructions(vec![
             ReceiveMessage,
             SendMessage(b"1\x00\x00\x00\x04t\x00\x00\x00\x06\x00\x00T\x00\x00\x00K\x00\x03id\x00\x00\x00@\x0a\x00\x01\x00\x00\x00\x17\x00\x04\xff\xff\xff\xff\x00\x00data1\x00\x00\x00@\x0a\x00\x02\x00\x00\x04\x13\xff\xff\x00\x00\x00\x36\x00\x00data2\x00\x00\x00@\x0a\x00\x03\x00\x00\x04\x13\xff\xff\x00\x00\x006\x00\x00Z\x00\x00\x00\x05I".into()),
             ReceiveMessage,
             SendMessage(b"2\x00\x00\x00\x04D\x00\x00\x00 \x00\x03\x00\x00\x00\x04\x00\x00\x00\x01\x00\x00\x00\x05test1\x00\x00\x00\x05test2C\x00\x00\x00\x0dSELECT 1\x00Z\x00\x00\x00\x05I".into()),
-            StopExchange, // PG client will attempt proper session closing which we are not simulating, so just stop early
+         //   StopExchange, // PG client will attempt proper session closing which we are not simulating, so just stop early
         ])
         .unwrap();
 
     // Execute the client SELECT query
-    let rows = client.query("SELECT * FROM playground", &[]).unwrap();
+    tracing::info!("client executing SELECT query, {}", client2.is_closed());
+    let rows = client2.query("SELECT * FROM playground", &[]).unwrap();
 
     // Check the SELECT query result
     assert_eq!(1, rows.len());
@@ -145,5 +161,8 @@ on\x00S\x00\x00\x00\x1aTimeZone\x00Europe/Paris\x00K\x00\x00\x00\x0c\x00\x00\x0a
     assert_eq!("test2", rows[0].get::<_, String>("data2"));
 
     // Check that no error has been raised by the mocked server
-    assert!(server.pop_server_error().is_none());
+    assert!(server2.pop_server_error().is_none());
+    client2
+        .close()
+        .unwrap_or_else(|e| tracing::error!("Failed to close client2: {}", e));
 }

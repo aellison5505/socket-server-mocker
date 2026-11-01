@@ -19,25 +19,25 @@ use crate::Instruction;
 #[derive(Debug, thiserror::Error)]
 #[allow(missing_docs)]
 pub enum ServerMockerError {
-    #[error("{}: Failed to bind TCP listener to {0}: {1}", self.fatal_str())]
+    #[error("{fatal}: Failed to bind TCP listener to {address}: {source}", fatal = self.fatal_str(), address = .0, source = .1)]
     UnableToBindListener(SocketAddr, io::Error),
-    #[error("{}: Failed to get local address of a listener: {0}", self.fatal_str())]
+    #[error("{fatal}: Failed to get local address of a listener: {error}", fatal = self.fatal_str(), error = .0)]
     UnableToGetLocalAddress(io::Error),
-    #[error("{}: Failed to accept incoming connection on {0}: {1}", self.fatal_str())]
+    #[error("{fatal}: Failed to accept incoming connection on {address}: {source}", fatal = self.fatal_str(), address = .0, source = .1)]
     UnableToAcceptConnection(SocketAddr, io::Error),
-    #[error("{}: Failed to send instructions list to TCP server mocker: {0}", self.fatal_str())]
+    #[error("{fatal}: Failed to send instructions list to TCP server mocker: {error}", fatal = self.fatal_str(), error = .0)]
     UnableToSendInstructions(SendError<Vec<Instruction>>),
-    #[error("{}: Failed to set read timeout on TCP stream: {0}", self.fatal_str())]
+    #[error("{fatal}: Failed to set read timeout on TCP stream: {error}", fatal = self.fatal_str(), error = .0)]
     UnableToSetReadTimeout(io::Error),
-    #[error("{}: Failed to read from TCP stream: {0}", self.fatal_str())]
+    #[error("{fatal}: Failed to read from TCP stream: {error}", fatal = self.fatal_str(), error = .0)]
     UnableToReadTcpStream(io::Error),
-    #[error("{}: Failed to write to TCP stream: {0}", self.fatal_str())]
+    #[error("{fatal}: Failed to write to TCP stream: {error}", fatal = self.fatal_str(), error = .0)]
     UnableToWriteTcpStream(io::Error),
-    #[error("{}: Failed to receive message from client: {0}", self.fatal_str())]
+    #[error("{fatal}: Failed to receive message from client: {error}", fatal = self.fatal_str(), error = .0)]
     UnableToReadUdpStream(io::Error),
-    #[error("{}: SendMessage instruction received before a ReceiveMessage", self.fatal_str())]
+    #[error("{fatal}: SendMessage instruction received before a ReceiveMessage", fatal = self.fatal_str())]
     GotSendMessageBeforeReceiveMessage,
-    #[error("{}: Failed to send message to client: {0}", self.fatal_str())]
+    #[error("{fatal}: Failed to send message to client: {error}", fatal = self.fatal_str(), error = .0)]
     FailedToSendUdpMessage(io::Error),
 }
 

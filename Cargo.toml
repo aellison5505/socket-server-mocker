@@ -2,7 +2,7 @@
 name = "socket-server-mocker"
 description = "Mock socket server in Rust, for testing various network clients."
 authors = ["Thomas Prévost", "Yuri Astrakhan <YuriAstrakhan>@gmail.com"]
-version = "0.6.1"
+version = "0.6.2"
 rust-version = "1.99.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -10,10 +10,14 @@ repository = "https://github.com/thomasarmel/socket-server-mocker"
 categories = ["network-programming", "development-tools::testing"]
 
 [dependencies]
-thiserror = "1.0.64"
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["full"] }
+tracing = "0.1.44"
+tracing-appender = "0.2.5"
+tracing-subscriber = "0.3.23"
 
 [dev-dependencies]
-reqwest = { version = "0.12.7", features = ["blocking"] }
+reqwest = { version = "0.13.5", features = ["blocking"] }
 postgres = "0.19.9"
 trust-dns-client = "0.23.2"
 lettre = "0.11.9"

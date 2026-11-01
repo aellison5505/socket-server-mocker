@@ -1,6 +1,8 @@
 //! Integration tests for simple SMTP server behavior.
 
 use std::time::Duration;
+use tracing::info;
+use tracing_subscriber::prelude::*;
 
 use lettre::transport::smtp::client::Tls;
 use lettre::{Message, SmtpTransport, Transport};
@@ -10,6 +12,11 @@ use socket_server_mocker::ServerMocker;
 #[test]
 fn test_smtp_mock() {
     // Create an SMTP TCP server mocker listening on port 2525 (SMTP default port is 25)
+    let (non_blocking, _guard) = tracing_appender::non_blocking(std::io::stdout());
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
+        .init();
+
     let server = ServerMocker::tcp_with_port(2525).unwrap();
 
     // Mocked server behavior
@@ -26,7 +33,7 @@ fn test_smtp_mock() {
         ReceiveMessage,
         SendMessageDependingOnLastReceivedMessage(|last_received| {
             if let Some(last_received) = last_received {
-           //     println!("Last received message: {:?}", String::from_utf8(last_received.clone()));
+                info!("Last received message: {:?}", String::from_utf8(last_received.clone()));
                 if String::from_utf8(last_received.clone()).unwrap().contains("Be happy!") {
                     Some(b"250 2.0.0 Ok: queued as 1C1A1B1C1D1E1F1G1H1I1J1K1L1M1N1O1P1Q1R1S1T1U1V1W1X1Y1Z\r\n".to_vec())
                 } else {

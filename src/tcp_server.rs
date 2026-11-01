@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+
 use crate::server_mocker::MockerOptions;
 use crate::Instruction::{
     self, ReceiveMessageWithMaxSize, SendMessage, SendMessageDependingOnLastReceivedMessage,
@@ -31,8 +32,8 @@ impl Default for TcpMocker {
     fn default() -> Self {
         Self {
             socket_addr: SocketAddr::from(([127, 0, 0, 1], 0)),
-            net_timeout: Duration::from_millis(100),
-            rx_timeout: Duration::from_millis(100),
+            net_timeout: Duration::from_millis(1000),
+            rx_timeout: Duration::from_millis(1000),
             reader_buffer_size: 1024,
         }
     }
@@ -55,9 +56,11 @@ impl MockerOptions for TcpMocker {
     ) -> Result<SocketAddr, ServerMockerError> {
         let listener = TcpListener::bind(self.socket_addr)
             .map_err(|e| UnableToBindListener(self.socket_addr, e))?;
+        
+
         let socket_addr = listener.local_addr().map_err(UnableToGetLocalAddress)?;
 
-        thread::spawn(move || match listener.accept() {
+         thread::spawn(move || match listener.accept() {
             Ok((stream, _addr)) => {
                 TcpServerImpl {
                     options: self,
@@ -74,6 +77,8 @@ impl MockerOptions for TcpMocker {
                     .unwrap();
             }
         });
+       
+       
 
         Ok(socket_addr)
     }
@@ -97,10 +102,11 @@ impl TcpServerImpl {
             return;
         }
         let last_received_message: Arc<Mutex<Option<Vec<u8>>>> = Arc::new(Mutex::new(None));
-
+        let msg_cloned = Arc::clone(&last_received_message);
         // Timeout: if no more instruction is available and StopExchange hasn't been sent
         // Stop server if no more instruction is available and StopExchange hasn't been sent
         while let Ok(instructions) = self.instruction_rx.recv_timeout(self.options.rx_timeout) {
+            tracing::info!("Processing instructions: {:?}", instructions);
             for instruction in instructions {
                 match instruction {
                     SendMessage(binary_message) => {
@@ -110,12 +116,11 @@ impl TcpServerImpl {
                     }
                     SendMessageDependingOnLastReceivedMessage(sent_message_calculator) => {
                         // Call the closure to get the message to send
+                        tracing::info!("SendMessageDependingOnLastReceivedMessage");
+                        let msg = msg_cloned.lock().unwrap().clone();
 
-                        let msg_cloned = Arc::clone(&last_received_message);
-                        let msg_clone = msg_cloned.lock().unwrap().clone();
-
-                        if msg_clone.is_some() {
-                            let message_to_send = sent_message_calculator(msg_clone);
+                        if msg.is_some() {
+                            let message_to_send = sent_message_calculator(msg);
                             // Send the message or skip if the closure returned None
                             if let Some(message_to_send) = message_to_send {
                                 if let Err(e) = self.send_packet(&message_to_send) {
@@ -126,9 +131,11 @@ impl TcpServerImpl {
                     }
 
                     Instruction::ReceiveMessage => {
+                               tracing::info!("ReceiveMessage");
                         match self.read_packet() {
+                     
                             Ok(whole_received_packet) => {
-                                let msg_cloned = Arc::clone(&last_received_message);
+                                //   let msg_cloned = Arc::clone(&last_received_message);
                                 let mut msg = msg_cloned.lock().unwrap();
                                 *msg = Some(whole_received_packet.clone());
                                 self.message_tx.send(whole_received_packet).unwrap();
@@ -137,10 +144,11 @@ impl TcpServerImpl {
                         };
                     }
                     ReceiveMessageWithMaxSize(max_message_size) => {
+                        tracing::info!("ReceiveMessageWithMaxSize: {}", max_message_size);
                         match self.read_packet() {
                             Ok(mut whole_received_packet) => {
                                 whole_received_packet.truncate(max_message_size);
-                                let msg_cloned = Arc::clone(&last_received_message);
+                                //    let msg_cloned = Arc::clone(&last_received_message);
                                 let mut msg = msg_cloned.lock().unwrap();
                                 *msg = Some(whole_received_packet.clone());
                                 self.message_tx.send(whole_received_packet).unwrap();
@@ -149,6 +157,7 @@ impl TcpServerImpl {
                         };
                     }
                     Instruction::StopExchange => {
+                        tracing::info!("Stop");
                         return;
                     }
                 }
