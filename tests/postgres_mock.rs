@@ -10,7 +10,7 @@
 use std::time::Duration;
 //use tracing::info;
 use postgres::{Client, NoTls};
-use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage, StopExchange};
+use socket_server_mocker::Instruction::{ReceiveMessage, SendMessage};
 use socket_server_mocker::ServerMocker;
 use tracing_subscriber::prelude::*;
 
@@ -19,6 +19,7 @@ fn postgres_insert_mock() {
     let (non_blocking, _guard) = tracing_appender::non_blocking(std::io::stdout());
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_writer(non_blocking))
+        .with(tracing_subscriber::EnvFilter::new(tracing::Level::ERROR.to_string()))
         .init();
     // Mock PostgreSQL server on a random port (default PostgresSQL port is 5432)
     let server = ServerMocker::tcp().unwrap();
